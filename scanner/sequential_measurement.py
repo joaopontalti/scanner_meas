@@ -318,23 +318,23 @@ class ScannerMeasurement():
             complete_path = self.main_folder / self.name / 'measured_signals'
             pytta.save(str(complete_path / 'xt.hdf5'), self.xt)
     
-    def ni_initializer(self, buffer_size = 2**8):
+    def ni_initializer(self, buffer_size = 2**8, repetitions = 1):
         """ Initialize NI for measurement
         """
         self.buffer_size = buffer_size
-        self.ni_control_obj = NIMeasurement(reference_sweep = self.xt, 
+        self.ni_control_obj = NIMeasurement(reference_signal = self.xt, 
                                             fs = self.xt.samplingRate, buffer_size = buffer_size)
         self.ni_control_obj.get_system_and_channels()
-
+        self.repetitions = repetitions
     
-    def ni_set_output_channels(self, out_channel_to_ni = 3, out_channel_to_amp = 1, ao_range = 10.0):
+    def ni_set_output_channels(self, physical_channel_nums = [0], out_channel_to_ni = 3, out_channel_to_amp = 1, ao_range = 10.0):
         """ Set NI output channels
         """
+        self.physical_channel_nums = physical_channel_nums 
         self.out_channel_to_ni = out_channel_to_ni
         self.out_channel_to_amp = out_channel_to_amp
         self.ao_range = ao_range
-        self.ni_control_obj.set_output_channels(out_channel_to_ni = self.out_channel_to_ni, 
-                                    out_channel_to_amp = self.out_channel_to_amp, 
+        self.ni_control_obj.set_output_channels(physical_channel_nums = self.physical_channel_nums, 
                                     ao_range = self.ao_range)
         
 
@@ -349,14 +349,26 @@ class ScannerMeasurement():
         self.ai_range = ai_range
         self.sensor_sens = sensor_sens
         self.sensor_current = sensor_current
-        self.ni_control_obj.set_input_channels(in_channel_ref = self.in_channel_ref_onrec, 
-                                               in_channel_sensor = self.in_channel_sensor_onrec,
-                                               ai_range = self.ai_range, 
-                                               sensor_sens = self.sensor_sens, 
-                                               sensor_current = self.sensor_current)
+        
+        # Se pá esse ta errado
+        # self.ni_control_obj.set_input_channels(in_channel_ref = self.in_channel_ref_onrec, 
+        #                                        in_channel_sensor = self.in_channel_sensor_onrec,
+        #                                        ai_range = self.ai_range, 
+        #                                        sensor_sens = self.sensor_sens, 
+        #                                        sensor_current = self.sensor_current)
         # self.save()
         # self.load()
         
+        # Se pá esse aqui ta certo
+        self.ni_control_obj.set_sensor_properties(sensor_type = 'voltage',
+                                                  physical_channel_num= self.in_channel_ref_onrec,
+                                                  sensitivity = 1, 
+                                                  ai_range = self.ai_range)
+        
+        self.ni_control_obj.set_sensor_properties(sensor_type = 'microphone',
+                                                  physical_channel_num= self.in_channel_sensor_onrec,
+                                                  sensor_current = self.sensor_current, 
+                                                  ai_range = self.ai_range)
         
     # def ni_set_play_rec_tasks(self, ):
         
@@ -626,8 +638,8 @@ class ScannerMeasurement():
         
         # Alteração Felipe e João
         print("Setting up motors... Moving y-axis +1mm and -1mm")
-        self.move_motor(motor_to_move = 'y', dist = -0.001)
-        self.move_motor(motor_to_move = 'y', dist = 0.001)
+        self.move_motor(motor_to_move = 'y', dist = -0.0001)
+        self.move_motor(motor_to_move = 'y', dist = 0.0001)
         print("Setup complete! y-axis moved correctly")
 
     def set_dht_sensor(self,):
@@ -786,6 +798,12 @@ class ScannerMeasurement():
         plt.savefig(fname = self.main_folder /self.name / filename, format='pdf', dpi = 300)
         plt.show()
 
+        #########TESTAR - joap
+        self.Lx_sample = L_x # Saves the sample X length given. Used for plotting 
+        self.Ly_sample = L_y # Saves the sample Y length given. Used for plotting
+        self.sample_thickness = sample_thickness 
+        self.baffle_size = baffle_size 
+        
     def stepper_run_base(self, motor, steps_to_send):
         """ Base method to move a motor
         

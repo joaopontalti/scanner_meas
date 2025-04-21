@@ -7,31 +7,34 @@ Created on Thu Jun 27 10:52:45 2024
 
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct 27 15:23:05 2022 - minimum measurement script
+Created on Thu O
+ct 27 15:23:05 2022 - minimum measurement script
 """
 import numpy as np
 from sequential_measurement import ScannerMeasurement
 from receivers import Receiver
 from sources import Source
 import pytta
+
 #%% Naming things
-name = 'testing_meas' #'melamine_L60cm_d3cm_s100cm_2mics_17072024' # Remember good practices --> samplename_arraykeyword_ddmmaaaa
-main_folder = 'D:/Work/dev/scanner_meas/meas_scripts/'#'D:/Work/UFSM/Pesquisa/insitu_arrays/experimental_dataset/reptest_eric/'# use forward slash
+name = 'PETWool_Lx120cm_Ly60cm_Lz4cm_doubleplanar_50x50x2cm_288pts_19042025_BKMic' #'melamine_L60cm_d3cm_s100cm_2mics_17072024' # Remember good practices --> samplename_arraykeyword_ddmmaaaa
+main_folder = 'C:/Users/joaop/anaconda3/envs/Dataset_JoaoP/TCC_DATASET_JoaoP/DATA2025'#'D:/Work/UFSM/Pesquisa/insitu_arrays/experimental_dataset/reptest_eric/'# use forward slash
 
 #%% Define your source object - coordinates are important when estimating the impedance sometimes. 
 ### This should be part of measurement metadata
-source = Source(coord = [0, 0, 1])
+source = Source(coord = [0, 0, 0.5])
 #%% Instantiate your measurement object controller.
+
 meas_obj = ScannerMeasurement(main_folder = main_folder, name = name,
-    fs = 44100, fft_degree = 18, start_stop_margin = [0.1, 0.5], 
-    mic_sens = 51.4, x_pwm_pin = 2, x_digital_pin = 24,
+fs = 44100, fft_degree = 18, start_stop_margin = [0.1, 0.5], 
+    mic_sens = 45.8, x_pwm_pin = 2, x_digital_pin = 24,
     y_pwm_pin = 3, y_digital_pin = 26, z_pwm_pin = 5, z_digital_pin = 28,
     dht_pin = 40, pausing_time_array = [8, 8, 8], 
-    material = None, material_type = 'melamine_L60cm_d4cm',
-    temperature = 20, humidity = 0.5,
-    microphone_type = 'Behringer ECM 8000',
-    audio_interface = 'M-audio Fast Track Pro',
-    amplifier = 'BK 2718',
+    material = None, material_type = 'PET Wool',
+    temperature = 22.5, humidity = 0.65,
+    microphone_type = 'BK 4189-A-021',
+    audio_interface = 'Focusrite Scarlett Solo 3rd Gen',
+    amplifier = 'BK 2716',
     source_type = 'spherical speaker', source = source,
     start_new_measurement = True)
 
@@ -41,14 +44,14 @@ meas_obj.set_measurement_date()
 #%% List pytta devices and choose the ASIO one of your sound card
 meas_obj.pytta_list_devices()
 #%% Set the audio device - if input/output is separate, it should be a list [in, out]
-meas_obj.pytta_set_device(device = 15)
+meas_obj.pytta_set_device(device = 13)
 
 #%% Set the measurement sweep. It will now save the xt in your "measured_signals" folder
-meas_obj.set_meas_sweep(method = 'logarithmic', freq_min = 250,
-                       freq_max = 10000, n_zeros_pad = 0)
+meas_obj.set_meas_sweep(method = 'logarithmic', freq_min = 100,
+                       freq_max = 20000, n_zeros_pad = 0)
 
 #%% Do the pytta play-rec setup. Channel numbers is super important.
-meas_obj.pytta_play_rec_setup(in_channel = [1, 3], out_channel = [1, 2],
+meas_obj.pytta_play_rec_setup(in_channel = [1, 2], out_channel = [1, 2],
                          in_channel_ref = 2, in_channel_sensor = 1,
                          output_amplification = -3,
                          repetitions = 1)
@@ -64,7 +67,7 @@ yt = meas_obj.pytta_play_rec()
 
 #%% Chech an impulse response - Does it look ok?
 ht = meas_obj.ir(yt, regularization=True, deconv_with_rec = True)
-ht.IR.plot_time(xLim = (0, 1));
+ht.IR.plot_time(xLim = (0,1));
 ht.IR.plot_freq(xLim = [20,20000]);
 
 #%% Recording noise in the environment
@@ -73,32 +76,41 @@ noise_sig = meas_obj.pytta_rec_noise()
 #%% Set your receiver array in two stages: (1) - the array; (2) - the starting point (go there and measure it)
 ### Good practice is that your starting point is above or below your array. 
 ### Make sure that the scanner can span everything you asked for.
-receiver_obj = Receiver(coord = [0,0,0.00])
-#receiver_obj.double_rec(z_dist = 0.02)
-#receiver_obj.double_planar_array(x_len=0.65,n_x=5,y_len=0.57,n_y=5, zr=0.015, dz=0.03)
-receiver_obj.random_3d_array(x_len = 0.3, y_len = 0.3, z_len = 0.1, zr = 0.02, n_total = 6, seed = 0)
-starting_coordinates= np.array([0.0, 0.0, 0.05]); "--> Coordinates where the michophone is"
+receiver_obj = Receiver(coord = [0,0,0.00]) # -> deixar 0 quando trabalhar com arranjo
+# receiver_obj.double_rec(z_dist = 0.02)
+receiver_obj.double_planar_array(x_len=0.5,n_x=12,y_len=0.5,n_y=12, zr=0.02, dz=0.02)
+# receiver_obj.random_3d_array2(x_len = 0.5, y_len = 0.5, z_len = 0.1, zr = 0.02, delta_xyz = 0.06, seed = 0, plot = False)
+# receiver_obj.sunflower_circular_array(n_recs = 100, radius = 1, alpha = 2, zr = 0.1)
+# receiver_obj.brick_array(x_len = 1.0, n_x = 8, y_len = 1.0, n_y = 8, z_len = 1.0, n_z = 8, zr = 0.1)
+# receiver_obj.random_3d_array(x_len = 1.0, y_len = 1.0, z_len = 1.0, zr = 0.1, n_total = 192, seed = 0)
+starting_coordinates= np.array([0.0, 0.0, 0.13]); "--> Coordinates where the michophone is"
 
 # Setting up the array saves every config made to this point
 meas_obj.set_receiver_array(receiver_obj, pt0 = starting_coordinates)
 
-#%% plot the scene and save to the the measurement folder
-meas_obj.plot_scene(L_x = 0.6, L_y = 0.6, sample_thickness = 0.03, baffle_size = 1.2)
+#% plot the scene and save to the the measurement folder
+meas_obj.plot_scene(L_x = 1.2, L_y = 0.6, sample_thickness = 0.04, baffle_size = 1.5)
+meas_obj.receivers.coord.shape
 
 #%% Set the motors for moving
 meas_obj.set_motors()
-
-#%% Perform sequential measurement - measured responses will be saved authomatically at your "measured_signals" folder
+# meas_obj.move_motor('x', -0.15)
+# meas_obj.move_motor('y', 0.15)
+# meas_obj.move_motor('z', 0.1)
+# meas_obj.board.shutdown()
+#%
+#% Perform sequential measurement - measured responses will be saved authomatically at your "measured_signals" folder
 ### Choose repetitions > 1 if you want to average the Impulse responses.
-meas_obj.sequential_measurement(bypass_scanner = True, noise_at_each_nth = 2)
-
-
-
-#%% move back
+meas_obj.sequential_measurement(bypass_scanner = False, noise_at_each_nth = 50)
+#%
+#% move back
 meas_obj.set_motors()
-meas_obj.move_motor(motor_to_move = 'z', dist = 0.03)
+# meas_obj.move_motor(motor_to_move = 'x', dist = 0.08)
+# meas_obj.move_motor(motor_to_move = 'y', dist = 0.15)
+# meas_obj.move_motor(motor_to_move = 'z', dist = 0.1)
 meas_obj.board.shutdown()
-print("I moved the mic back")
+# print("I moved the mic back")
+print("Arranjo do Gustavão da medido")
 
 #%% load one meas and check
 path = main_folder + '/' + name + '/measured_signals/' #+ '/rec0_m0.hdf5'
@@ -107,3 +119,5 @@ med_dict = pytta.load(path + 'rec0_m0.hdf5')
 keyslist = list(med_dict.keys())
 yts = med_dict[keyslist[0]]
 yts.plot_freq(xLim = (20, 20000))
+
+yts.plot_time_dB()
