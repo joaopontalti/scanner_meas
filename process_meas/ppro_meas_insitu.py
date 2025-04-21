@@ -114,8 +114,8 @@ class InsituMeasurementPostPro():
         return ht_mean_pytta
     
     def compute_all_ir(self, yt_list, regularization = True, 
-                       only_linear_part = True, bar_leave = True):
-        """Compute all Impulse responses
+                       only_linear_part = True, bar_leave = True, invert_phase=False):
+        """Compute all Impulse responses 
         """
         ht_list = []
         bar = tqdm(total = self.meas_obj.receivers.coord.shape[0], leave = bar_leave,
@@ -123,10 +123,21 @@ class InsituMeasurementPostPro():
         # For each receiver compute repeated ht
         for jrec in range(self.meas_obj.receivers.coord.shape[0]):
             ht_rep_list = []
-            # loop through repetitions
+            # loop through repetitions            
             for jmeas in range(self.meas_obj.repetitions):
-                ht = self.ir(yt_list[jrec][jmeas], regularization = regularization)
-                ht_rep_list.append(ht.IR)
+                ht = self.ir(yt_list[jrec][jmeas], 
+                             regularization = regularization)
+                
+            # Invert phase if required -> ADD by joaop
+                if invert_phase:
+                    invert_sig = -ht.IR.timeSignal
+                    ht_signal = pytta.SignalObj(signalArray=invert_sig,
+                                            lengthDomain='time',
+                                            samplingRate=ht.IR.samplingRate)
+                    ht_rep_list.append(ht_signal)
+                else:
+                    ht_rep_list.append(ht.IR)
+            
             # take mean IR
             ht_mean_pytta = self.mean_ir(ht_rep_list, only_linear_part = only_linear_part)
             ht_list.append(ht_mean_pytta)
@@ -135,10 +146,29 @@ class InsituMeasurementPostPro():
         return ht_list
     
     def compute_all_ir_load(self, regularization = True,  deconv_with_rec = True, 
-                       only_linear_part = True):
+                       only_linear_part = True, invert_phase = False):
         
-       """Compute all Impulse responses while loading measurement files. Saves memory
        """
+       Compute all Impulse responses while loading measurement files. Saves memory
+       -----
+
+        Parameters
+        ----------
+        
+        regularization : bool, optional (default=True)
+            If True, applies regularization during the IR deconvolution process.
+    
+        deconv_with_rec : bool, optional (default=True)
+            If True, uses the receiver channel as the reference signal for deconvolution.
+    
+        only_linear_part : bool, optional (default=True)
+            If True, keeps only the linear part of the IR (first half), discarding
+            late reflections or distortions.
+        
+        invert_phase : bool, optional (default=False)
+            If True, inverts the phase of each computed IR by multiplying the signal by -1.
+            This can be useful when polarity inversion is observed in the measured data.
+           """
        
        # For each receiver compute repeated ht
        for jrec in range(self.meas_obj.receivers.coord.shape[0]):
@@ -157,14 +187,27 @@ class InsituMeasurementPostPro():
                # Compute ht
                ht = self.meas_obj.ir(yt, regularization = regularization,
                                      deconv_with_rec =  deconv_with_rec)
-               ht_rep_list.append(ht.IR)
+                   
+               # Invert phase if required -> ADD by joaop
+               # Right when the signal is appended to the full ht matrix
+
+               if invert_phase:
+                   invert_sig = -ht.IR.timeSignal 
+                   ht_signal = pytta.SignalObj(signalArray=invert_sig,
+                                               lengthDomain='time',
+                                               samplingRate=ht.IR.samplingRate)
+                   ht_rep_list.append(ht_signal)
+               else:
+                   
+                   ht_rep_list.append(ht.IR)
+           
            # take mean IR
            ht_mean_pytta = self.mean_ir(ht_rep_list, only_linear_part = only_linear_part)
            
            # Discount the bypass
            # ht_mean_pytta.crop(float(self.t_bypass), float(ht_mean_pytta.timeVector[-1]))
            
-           # ptta saving
+           # pytta saving
            filename = 'ht' + str(int(jrec)) + '.hdf5'
            complete_path = self.meas_obj.main_folder / self.meas_obj.name / 'impulse_responses'
            pytta.save(str(complete_path / filename), ht_mean_pytta)
